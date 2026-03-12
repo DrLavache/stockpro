@@ -1,0 +1,250 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id           String      @id @default(cuid())
+  name         String
+  category     String
+  minThreshold Int
+  stockInitial Int         @default(0)
+  status       String      @default("OK")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  movements    Movement[]
+  alerts       Alert[]
+  currentStock Int         @default(0)
+  totalEntrees Int         @default(0)
+  totalSorties Int         @default(0)
+}
+
+model Movement {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  type        String
+  quantity    Int
+  price       Float?
+  total       Float?
+  reason      String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+model Alert {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  message   String
+  sentAt    DateTime @default(now())
+  status    String   @default("PENDING")
+}
+
+model Settings {
+  id              String  @id @default(cuid())
+  emailTo         String?
+  emailFrom       String?
+  alertEnabled    Boolean @default(true)
+  companyName     String?
+  companyAddress  String?
+  companyPhone    String?
+  companyEmail    String?
+}
+
+model Subscription {
+  id              String    @id @default(cuid())
+  plan            String    @default("FREE")
+  status          String    @default("ACTIVE")
+  startDate       DateTime  @default(now())
+  endDate         DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  maxProducts     Int       @default(3)
+  maxMovements    Int       @default(50)
+  maxAlerts       Int       @default(5)
+  emailAlerts     Boolean   @default(false)
+  aiEmails        Boolean   @default(false)
+  exportData      Boolean   @default(false)
+  apiAccess       Boolean   @default(false)
+  prioritySupport Boolean   @default(false)
+  customBranding  Boolean   @default(false)
+}
+
+model Invoice {
+  id             String    @id @default(cuid())
+  invoiceNumber  String    @unique
+  type           String
+  status         String    @default("DRAFT")
+  sellerName     String
+  sellerAddress  String?
+  sellerPhone    String?
+  sellerEmail    String?
+  buyerName      String
+  buyerAddress   String?
+  buyerPhone     String?
+  buyerEmail     String?
+  subtotal       Float
+  tax            Float     @default(0)
+  total          Float
+  currency       String    @default("XOF")
+  issueDate      DateTime  @default(now())
+  dueDate        DateTime?
+  paidAt         DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  items          InvoiceItem[]
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int
+  unitPrice   Float
+  total       Float
+  createdAt   DateTime @default(now())
+}
+
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  type          String
+  name          String
+  accountName   String?
+  accountNumber String?
+  network       String?
+  qrCode        String?
+  instructions  String?
+  isActive      Boolean  @default(true)
+  isVisible     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AdminSettings {
+  id                    String  @id @default(cuid())
+  adminPassword         String
+  requireAdminApproval  Boolean @default(true)
+  autoGenerateVoucher   Boolean @default(false)
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  invoiceId         String?
+  subscriptionId    String?
+  amount            Float
+  currency          String
+  paymentMethod     String
+  methodType        String
+  reference         String?
+  txHash            String?
+  status            String   @default("PENDING")
+  createdAt         DateTime @default(now())
+  confirmedAt       DateTime?
+  expiresAt         DateTime?
+  notes             String?
+  requestedPlan     String?
+  requestedDuration String?  @default("MONTHLY")
+  userEmail         String?
+  userPhone         String?
+  adminNotes        String?
+  voucher           Voucher?
+}
+
+model Voucher {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  plan          String
+  duration      Int       @default(30)
+  status        String    @default("ACTIVE")
+  paymentId     String?   @unique
+  payment       Payment?  @relation(fields: [paymentId], references: [id])
+  usedBy        String?
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime?
+  notes         String?
+}
+
+model SupportTicket {
+  id          String    @id @default(cuid())
+  type        String
+  subject     String
+  message     String
+  userName    String?
+  userEmail   String
+  userPhone   String?
+  priority    String    @default("NORMAL")
+  status      String    @default("OPEN")
+  adminReply  String?
+  repliedAt   DateTime?
+  repliedBy   String?
+  paymentId   String?
+  voucherCode String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  closedAt    DateTime?
+}
+
+model ActivityLog {
+  id          String    @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String?
+  details     String?
+  userId      String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+}
+
+model DailyStats {
+  id               String   @id @default(cuid())
+  date             DateTime @unique
+  paymentsCreated  Int      @default(0)
+  paymentsConfirmed Int    @default(0)
+  paymentsRejected Int      @default(0)
+  revenueTotal     Float    @default(0)
+  vouchersGenerated Int     @default(0)
+  vouchersUsed     Int      @default(0)
+  ticketsCreated   Int      @default(0)
+  ticketsResolved  Int      @default(0)
+  pageViews        Int      @default(0)
+  uniqueVisitors   Int      @default(0)
+  createdAt        DateTime @default(now())
+}
+
+model PricingConfig {
+  id                String  @id @default(cuid())
+  plan              String  @unique
+  monthlyPrice      Float   @default(0)
+  monthlyEnabled    Boolean @default(true)
+  quarterlyPrice    Float   @default(0)
+  quarterlyEnabled  Boolean @default(true)
+  quarterlyDiscount Int     @default(10)
+  yearlyPrice       Float   @default(0)
+  yearlyEnabled     Boolean @default(true)
+  yearlyDiscount    Int     @default(20)
+  features          String?
+  isActive          Boolean @default(true)
+  isPopular         Boolean @default(false)
+  displayOrder      Int     @default(0)
+  maxProducts       Int     @default(10)
+  maxMovements      Int     @default(100)
+  maxAlerts         Int     @default(10)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model AdminEmail {
+  id          String  @id @default(cuid())
+  email       String  @unique
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+}
